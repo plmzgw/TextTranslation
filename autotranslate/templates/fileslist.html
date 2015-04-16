@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block javascript %}
+<script src="/static/js/old_xmlhttp.js"></script>
+<script type="text/javascript">
+function check()
+{
+
+	var filevalue=document.getElementById("filefield").value;
+	
+	if (filevalue)
+	{
+		return true	
+	}
+	else
+	{
+		alert('请选择一个或多个非空文件导入!')
+		return false
+	}
+}
+
+function checkfiletype(obj)
+{
+	var fname = obj.getAttribute('myname')
+	var fid = obj.getAttribute('myid')
+	var regex = /^\w+.*((\.csv)|(\.xls))$/;
+	var result = regex.test(fname)
+	if (result)
+	{
+		var url = "/file/"+fid+"/resolve/";
+		window.location.href=url;
+	}
+	else
+	{
+		alert('文件类型不支持，只支持解析.csv和.xls类型文件！')
+		var url="{% url "filelist" %}"
+		window.location.href=url;
+	}
+}
+function deletecheck(obj)
+{
+	var tagid = obj.id
+	if(tagid=="del_uploadfile")
+	{
+		var f_id = obj.getAttribute('myid')
+		var result = confirm('你确定要删除吗？')
+		if (result)
+		{
+			var url = "/file/"+f_id+"/del_up/";
+			window.location.href= url;
+		}
+		else
+		{
+			var url="{% url "filelist" %}";
+			window.location.href=url;
+		}
+	}
+	else if (tagid="del_transfile")
+	{
+		var f_id = obj.getAttribute('myid')
+		var result = confirm('你确定要删除吗？')
+		if (result)
+		{
+			var url = "/file/"+f_id+"/del_trans/";
+			window.location.href= url;
+		}
+		else
+		{
+			var url="{% url "filelist" %}";
+			window.location.href=url;
+		}
+	}
+	
+}
+function download(obj)
+{
+	var f_id = obj.getAttribute('myid');
+	var url = "/file/"+f_id+"/download/";
+	window.location.href=url;
+}
+function formvalidate(thisform)
+{
+	var selectedfile = thisform.fname_byid.value
+	if (selectedfile=='' || selectedfile==null)
+	{
+		alert('请选择要翻译的文本！')
+		return false
+	}
+	else
+	{
+		var selchecks = document.getElementsByName('column');
+		for (var i=0; i<selchecks.length; i++)
+		{
+			if(selchecks[i].checked)
+			{
+				return true
+			}
+		}
+		alert('请选择要翻译的内容！')
+		return false
+	}
+
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+	<div >
+		<form action="{% url "filelist" %}" method="post" onsubmit="return check()" enctype="multipart/form-data">
+				{% csrf_token %}
+				{% if form.errors %}
+				<p style="color: red">你选择的文件为空文件，请选择非空文件导入!</p>
+				{% endif %}
+				<p><input type="file" id="filefield" name="myfile" multiple="multiple"/><input type="submit" value="开始导入"/>
+				</p>
+		</form>
+	</div>
+	<div id="fileslist">
+		<table width="100%" align="left">
+		<tr>
+			 <td  width="40%">
+		{% if fileslist %}
+		<p style="color: blue">已上传文件列表：（共{{fileslist.count}}个文件）</p>
+		{% else %}
+		<p style="color: blue">已上传文件列表：（共0个文件）</p>
+		{% endif %}
+			</td>
+			<td  width="60%">
+		{% if trans_fileslist %}
+		<p style="color: blue">已翻译文件列表：（共{{trans_fileslist.count}}个文件）</p>
+		{% else %}
+		<p style="color: blue">已翻译文件列表：（共0个文件）</p>
+		{% endif %}
+			</td>
+		</tr>
+		<tr>
+			<td>
+		<table id="uploadfiles" width="550" style="background:green" >
+			<tbody>
+				<tr>
+					<th width="180" style="word-break:break-all;text-align:left;">
+				 		文件
+					</th>
+					<th style="text-align:center;">
+						上传时间
+					</th>
+					<th style="text-align:center;">
+						操作
+					</th>
+				</tr>
+				{% if fileslist %}
+				{% for item in fileslist %}
+					<tr>
+						<td style="text-align:left">
+							{{ item.filename }}
+						</td >
+						<td style="text-align:left">
+							{{ item.upload_time }}
+						</td >
+						<td style="text-align:center">
+						<button id="del_uploadfile" type="button" myid="{{item.id}}" style="color:red" onclick="javascript:deletecheck(this)">删除</button>
+						<button id="btn_trans" type="button" myid="{{item.id}}" myname="{{item.filename}}" style="color:blue" onclick="javascript:checkfiletype(this)">翻译</button>
+						</td>
+					</tr>
+				{% endfor %}
+				{% endif %}
+				</tbody>
+		</table>
+		 </td>
+		 <td>
+		
+		<table id = "translatedfiles" width="650" style="background:green" >
+			<tbody>
+				<tr>
+					<th width="200" style="word-break:break-all;text-align:left;">
+				 		文件
+					</th>
+					<th style="text-align:center;">
+						翻译语言
+					</th>
+					<th style="text-align:center;">
+						翻译时间
+					</th>
+					<th style="text-align:center;">
+						操作
+					</th>
+				</tr>
+				{% if trans_fileslist %}
+				{% for item in trans_fileslist %}
+					<tr>
+						<td style="text-align:left">
+							{{ item.filename }}
+						</td >
+						<td style="text-align:center">
+							{{ item.trans_lang }}
+						</td >
+						<td style="text-align:left">
+							{{ item.trans_time }}
+						</td >
+						<td style="text-align:center">
+						<button id="del_transfile" type="button" myid = "{{item.id}}" style="color:red" onclick="javascript:deletecheck(this)">删除</button>
+						<button id="btn_download" type="button"  myid="{{item.id}}" style="color:blue" onclick="javascript:download(this)">导出</button>
+						</td>
+					</tr>
+				{% endfor %}
+				{% endif %}
+				</tbody>
+		</table>
+		 </td>
+		<tr>
+	</table>
+	</div>
+	<p></p>
+	<div id="content_trans">
+		{% if fname_byid %}
+		<p>选定的文本：<lable style="color:blue">{{ fname_byid }}</lable><p>
+		{% else %}
+		<p>选定的文本：<lable style="color:blue">没有选择要翻译的文本！</lable><p>
+		{% endif %}
+		<form action="{% url 'translate'%}" onsubmit="return formvalidate(this)" method="get" >
+			选择要翻译的内容：<br>
+			{% for item in title_list %}
+			<input id="column" type=checkbox name="column" value={{ forloop.counter0 }}>{{ item }}</input>
+			{% endfor %}
+			<br><br>
+			<input id="fileId" type="hidden" name="fileId" value={{ fileId }}></input>
+			<input id="fname_byid" type="hidden" name="fname_byid" value={{ fname_byid }}></input>
+			<input id="file_type" type="hidden" name="file_type" value={{ f_type }}></input>
+			<input id="sep_type" type="hidden" name="sep_type" value={{ separate_type }}></input>
+			<lable>源语言：</lable>
+			<select id='source_lang' name="source_lang">
+			{% for item in languages %}
+			<option value={{item.language_code}}>{{ item.language_chinese}}</option>
+			{% endfor %}
+			</select>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+			<lable>目标语言：</lable>
+			<select id='target_lang' name="target_lang">
+			{% for item in languages %}
+				{% ifequal item.language_code "zh-CN" %}
+				<option value={{item.language_code}} selected>{{ item.language_chinese}}</option>
+				{% else %}
+				<option value={{item.language_code}}>{{ item.language_chinese}}</option>
+				{% endifequal %}
+			{% endfor %}
+			</select>&nbsp;&nbsp;
+			
+			<input style="color:blue" type="submit" value="开始翻译"/>&nbsp;&nbsp;
+			<label style="color:blue">{{trans_state}}</label>
+		</form>
+	</div>
+{% endblock %}
+
+
